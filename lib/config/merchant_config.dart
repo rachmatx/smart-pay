@@ -15,5 +15,5 @@ class MerchantConfig {
   String baseUrl = 'https://payment-api-production-ba66.up.railway.app';
 
   /// API Key untuk otentikasi ke backend
-  String apiKey = 'api-keysmartpay-test123';
+  String apiKey = 'my-super-secret-key-123';
 }
