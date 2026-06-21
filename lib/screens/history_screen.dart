@@ -52,6 +52,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return buffer.toString();
   }
 
+  String _formatIndonesianDate(DateTime d) {
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    final timeZone = d.timeZoneName; // Akan mendeteksi WIB/WITA/WIT jika HP disetting ke regional Indonesia
+    return '${d.day} ${months[d.month - 1]} ${d.year} • ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')} $timeZone';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,7 +92,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       
                       final d = tx.createdAt?.toLocal();
                       final dateStr = d != null 
-                          ? '${d.day}/${d.month}/${d.year} ${d.hour}:${d.minute.toString().padLeft(2, '0')}' 
+                          ? _formatIndonesianDate(d)
                           : 'Waktu tidak diketahui';
 
                       return Card(
