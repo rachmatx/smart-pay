@@ -1,99 +1,83 @@
-# Smart Pay App
+# Smart Pay (Flutter Mobile App)
 
-Aplikasi prototipe dompet digital (e-wallet) interaktif yang dibangun menggunakan Flutter. Aplikasi ini dirancang secara modular agar dapat mensimulasikan pembayaran mandiri (melalui metode QRIS maupun Transfer Bank) dan terhubung secara dinamis ke sistem API lokal maupun remote (Production).
-
-## Fitur Utama
-
-- Pemindaian QRIS (QR Scanner): Menggunakan library `mobile_scanner` untuk membaca tautan pembayaran atau referensi QRIS secara real-time dari kamera perangkat.
-- Transfer Bank Dinamis: Mampu membaca metadata JSON dari respons API backend dan secara otomatis menyesuaikan UI (seperti nama bank dan nama pemilik rekening atau merchant).
-- Otentikasi Biometrik Tingkat Lanjut: Terintegrasi dengan sensor biometrik perangkat (Fingerprint atau FaceID) menggunakan package `local_auth`. Sistem keamanan ini memanfaatkan enkripsi lokal perangkat (Secure Enclave pada iOS atau Keystore pada Android) tanpa perlu menyimpan data biometrik di dalam database.
-- Kalkulasi Saldo Otomatis: Sinkronisasi saldo dilakukan secara dinamis berdasarkan kalkulasi total nominal tagihan berstatus "SUCCESS" dari backend, dikurangi dari saldo dasar pengguna.
-- Reusable Architecture: Semua teks merchant, status tagihan, dan detail transaksi diambil langsung dari backend API, sehingga aplikasi Flutter ini tidak memiliki data entitas merchant yang terikat mati (hardcoded).
-
-## Panduan Instalasi dan Pengaturan Lingkungan (Environment Setup)
-
-Agar aplikasi dapat berjalan dan berkomunikasi dengan API backend di lingkungan pengembangan lokal Anda, ikuti instruksi berikut:
-
-### 1. Menyelaraskan Alamat IP Jaringan (Local Network)
-
-Ketika menjalankan aplikasi di perangkat Android fisik melalui USB Debugging, perangkat tersebut tidak akan mengenali alamat `localhost` sebagai komputer Anda (karena `localhost` di dalam smartphone akan merujuk ke dirinya sendiri). Oleh karena itu, Anda diwajibkan untuk menggunakan alamat IP komputer server Anda.
-
-1. Hubungkan komputer (Server API) dan smartphone Android ke dalam satu jaringan Wi-Fi (Atau gunakan jaringan Hotspot seluler yang sama).
-2. Temukan alamat IPv4 Wi-Fi komputer Anda dengan menjalankan perintah `ipconfig` (Windows) atau `ifconfig` (Mac/Linux) di Command Prompt atau Terminal. (Contoh: `192.168.100.10`).
-3. Buka file konfigurasi di dalam direktori `lib/config/merchant_config.dart`.
-4. Ubah variabel `baseUrl` menggunakan alamat IPv4 tersebut beserta port API yang Anda gunakan.
-   ```dart
-   String baseUrl = 'http://192.168.100.10:3000';
-   ```
-
-### 2. Membangun dan Menjalankan Aplikasi (Testing Mode)
-
-1. Buka direktori proyek ini di Terminal, Command Prompt, Android Studio, atau VS Code.
-2. Unduh semua pustaka (dependencies) yang dibutuhkan oleh proyek:
-   ```bash
-   flutter pub get
-   ```
-3. Sambungkan smartphone Android Anda via kabel USB dan pastikan mode "USB Debugging" serta "Install via USB" telah diaktifkan di menu Developer Options.
-4. Jalankan aplikasi menggunakan perintah:
-   ```bash
-   flutter run
-   ```
-5. Tunggu proses instalasi dan Gradle build selesai. Setelah aplikasi berhasil terbuka di layar smartphone, Anda dapat mencabut kabel USB. Aplikasi akan terus berjalan secara independen selama perangkat terhubung dengan jaringan Wi-Fi yang sama dengan server API Anda.
-
-## Panduan Kompilasi Produksi (Membangun File APK)
-
-Apabila aplikasi sudah berstatus final dan Anda ingin mendistribusikannya untuk diinstal pada perangkat Android lain tanpa melalui proses USB Debugging, Anda perlu membangun (build) file Android Package (APK).
-
-1. Pastikan seluruh konfigurasi API (Base URL dan API Key) di `merchant_config.dart` sudah diarahkan ke URL server produksi (Public Domain) dan menggunakan standar protokol `https`.
-2. Jalankan perintah kompilasi rilis berikut di Terminal Anda:
-   ```bash
-   flutter build apk --release
-   ```
-3. Proses kompilasi kode (AOT Compilation) akan berjalan selama beberapa menit.
-4. Setelah proses selesai, file APK final akan tersimpan secara otomatis di dalam direktori:
-   `build/app/outputs/flutter-apk/app-release.apk`
-5. Salin file `app-release.apk` tersebut dan Anda dapat membagikannya kepada klien atau pengguna lain untuk diinstal secara langsung di sistem operasi Android.
-
-## Panduan Integrasi Antar Proyek (Reusability)
-
-Salah satu nilai utama dari arsitektur Smart Pay adalah desain kode yang sangat dinamis dan dapat digunakan kembali secara instan. Jika Anda memiliki proyek Point of Sales (Kasir) atau E-Commerce lain di masa mendatang, Anda sama sekali tidak perlu mengubah struktur logika atau User Interface dari aplikasi Flutter ini.
-
-Berikut adalah tahapan teknis untuk melakukan integrasi dengan sistem backend yang baru:
-
-### 1. Standarisasi API Backend
-
-Aplikasi Smart Pay beroperasi murni berdasarkan instruksi dari Payment API (menggunakan Node.js/Express.js atau kerangka bahasa pemrograman backend lainnya). Anda hanya perlu mengembangkan backend API di sistem yang baru, dengan syarat memastikan endpoint yang disediakan merespons dengan format JSON yang identik dengan Smart Pay Contract:
-- Endpoint POST `/api/transactions` (Menerima permintaan pembuatan tagihan baru)
-- Endpoint GET `/api/transactions/:id/status` (Memberikan respons status riwayat tagihan)
-- Endpoint GET `/api/transactions/find-transfer-target` (Mengembalikan rincian data merchant/bank berdasarkan kode transfer)
-
-### 2. Penyesuaian File Konfigurasi (Single Point of Configuration)
-
-Tanpa perlu merombak seluruh barisan file UI, Anda hanya diwajibkan untuk merevisi dua nilai variabel pada file `lib/config/merchant_config.dart`. Perubahan ini akan menghubungkan aplikasi secara utuh ke ekosistem proyek yang baru.
-
-```dart
-class MerchantConfig {
-  MerchantConfig._internal();
-  static final MerchantConfig _instance = MerchantConfig._internal();
-  static MerchantConfig get instance => _instance;
-
-  // 1. Ubah alamat Base URL di bawah ke domain API / Server kasir Anda yang baru
-  String baseUrl = 'https://api.proyek-baru-anda.com';
-
-  // 2. Ubah baris ini sesuai dengan API Key autentikasi di server backend Anda yang baru
-  String apiKey = 'API-KEY-PROYEK-BARU-RAHASIA';
-}
-```
-
-Melalui prosedur konfigurasi singkat di atas, maka atribut-atribut seperti: teks identitas merchant, nama sistem penyedia layanan pada halaman struk transaksi, dan nomor rekening penampung tagihan, akan secara otomatis mengikuti data mutakhir yang dikirimkan oleh server baru Anda. Mekanisme ini menjamin Smart Pay untuk selalu berfungsi sebagai layanan Payment Gateway yang fleksibel dan independen.
+Smart Pay is a secure, premium digital wallet application built with the Flutter framework. It serves as the mobile interface for customers to interact with the Sparkleen Laundry ecosystem, enabling seamless QRIS scanning and Virtual Account / Bank Transfer payments.
 
 ---
 
-## Sumber Daya Pengembangan (Resources)
+## Core Features
+1. **Biometric Authentication**: Utilizes local_auth to secure the application with Fingerprint or Face Recognition before accessing the main dashboard.
+2. **Dynamic QR Scanner**: Integrates mobile_scanner to scan QR Codes generated by the Sparkleen Laundry cashier system.
+3. **Smart Transfer Matching**: Automatically finds pending transactions on the server by cross-referencing the transfer amount and the selected bank.
+4. **Real-time Status Tracking**: Displays elegant UI status indicators for pending, successful, and failed transactions.
+5. **Indonesian Localization**: Automatically formats dates, times, and currency (Rupiah) according to Indonesian standards without bloated dependencies.
+6. **Optimized Build**: Fully configured to support R8/ProGuard minification in Release mode without breaking ML Kit Vision dependencies.
 
-Proyek ini adalah titik awal yang baik untuk aplikasi Flutter. Jika Anda memerlukan referensi untuk menangani bug, melakukan debugging, atau mempelajari cara kerja framework ini lebih dalam, Anda dapat merujuk pada sumber informasi resmi berikut:
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## System Requirements
+- **Flutter SDK**: Version 3.12.2 or higher.
+- **Android Studio / Command Line Tools**: For building Android APKs.
+- **Physical Device**: A physical Android device is required to test Biometric (Fingerprint) and Camera capabilities. (Chrome/Web emulation is heavily restricted).
 
-Untuk bantuan awal dan referensi komprehensif terkait ekosistem Flutter dan Dart, silakan baca dokumentasi resmi di [Flutter Online Documentation](https://docs.flutter.dev/). Di sana Anda akan menemukan panduan tutorial lengkap, sampel kode, panduan pengembangan arsitektur mobile, hingga referensi API secara menyeluruh.
+---
+
+## Development & Setup
+
+### 1. Configuration
+Before compiling the application, ensure it points to the correct production or local Payment API. Open the following file:
+`lib/config/merchant_config.dart`
+
+Ensure the variables are set to match your backend:
+```dart
+class MerchantConfig {
+  static final MerchantConfig _instance = MerchantConfig._internal();
+  factory MerchantConfig() => _instance;
+  MerchantConfig._internal();
+
+  /// API URL of the Node.js Payment API (e.g., Railway URL)
+  String baseUrl = 'https://payment-api-production-ba66.up.railway.app';
+
+  /// Master API Key matching the Node.js server
+  String apiKey = 'my-super-secret-key-123';
+}
+```
+
+### 2. Running in Debug Mode
+To run the app on your connected device in debug mode (allows Hot Reload but includes debugging bloat):
+```bash
+flutter run
+```
+
+### 3. Compiling for Production (Release Mode)
+To create a lightweight, optimized APK suitable for end-users, run the following command in your terminal:
+```bash
+flutter build apk --split-per-abi
+```
+This command generates multiple APKs targeted for specific CPU architectures (significantly reducing the file size down to ~20MB). You can find the compiled files in:
+`build/app/outputs/flutter-apk/`
+
+To install the lightweight release APK directly to your connected device via USB debugging, use:
+```bash
+flutter run --release
+```
+
+---
+
+## Integration Guide for Other Projects
+
+While Smart Pay is currently tailored for Sparkleen Laundry, its architecture is highly modular and can be integrated into any other point-of-sale or e-commerce project.
+
+To adapt Smart Pay for a different project, you only need to ensure your new backend replicates the Node.js API behavior:
+1. **API Endpoints**: Your new backend must provide the exact REST API endpoints expected by the `PaymentService` (`/api/transactions/:id`, `/api/transactions/find-transfer-target`, and `/api/transactions/:id/pay`).
+2. **JSON Contract**: Your new backend must return JSON objects that map perfectly to the `TransactionModel` defined in `lib/models/transaction.dart`.
+3. **Update Config**: Modify the `baseUrl` in `merchant_config.dart` to point to your new project's API.
+
+No UI or core logic changes are required within the Flutter application as long as the API contract remains identical.
+
+---
+
+## Troubleshooting
+
+- **Biometric Not Supported (Red Snackbar)**: Ensure you are running the app on a physical device with a registered fingerprint/face. Emulators and Web Browsers will reject biometric requests.
+- **Camera Black Screen / Null Pointer Exception**: Ensure `isMinifyEnabled` and `isShrinkResources` are set to `false` in the `android/app/build.gradle.kts` release block, or proper ProGuard rules are configured for ML Kit.
+- **Invalid API Key**: Ensure the `apiKey` string in `merchant_config.dart` perfectly matches the `API_KEY` environment variable on your Node.js server.
