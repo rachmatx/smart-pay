@@ -12,7 +12,7 @@ class MerchantConfig {
   static MerchantConfig get instance => _instance;
 
   /// Base URL backend (Gunakan IP komputer agar HP bisa mengaksesnya via WiFi)
-  String baseUrl = 'http://192.168.100.10:3000';
+  String baseUrl = 'https://payment-api-production-ba66.up.railway.app';
 
   /// API Key untuk otentikasi ke backend
   String apiKey = 'api-keysmartpay-test123';
