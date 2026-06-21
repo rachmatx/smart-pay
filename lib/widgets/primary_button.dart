@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_theme.dart';
+
 /// Tombol utama yang konsisten di seluruh aplikasi.
 ///
 /// Menggunakan warna dari theme agar tidak ada warna yang di-hardcode.
@@ -17,20 +19,20 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 56, // Slightly taller for premium feel
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: theme.colorScheme.primary,
-          foregroundColor: theme.colorScheme.onPrimary,
+          backgroundColor: AppTheme.primaryColor,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: AppTheme.primaryColor.withValues(alpha: 0.5),
+          disabledForegroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
-          elevation: 2,
+          elevation: 0, // Flat design with subtle shadow from wrap if needed, but modern is flat
         ),
         child: isLoading
             ? const SizedBox(
@@ -46,6 +48,7 @@ class PrimaryButton extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
                 ),
               ),
       ),

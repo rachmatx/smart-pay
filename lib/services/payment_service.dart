@@ -60,6 +60,43 @@ class PaymentService {
     }
   }
 
+  /// Mencari target transfer bank (hanya prototype).
+  ///
+  /// Endpoint: POST /api/transactions/find-transfer-target
+  Future<TransactionModel> findTransferTarget({
+    required double amount,
+    required String bankName,
+    required String accountNumber,
+  }) async {
+    final url = Uri.parse('${_config.baseUrl}/api/transactions/find-transfer-target');
+
+    try {
+      final body = <String, dynamic>{
+        'amount': amount,
+        'bank_name': bankName,
+        'account_number': accountNumber,
+      };
+
+      final response = await http.post(
+        url,
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 200) {
+        return TransactionModel.fromJson(decoded['data']);
+      } else {
+        final error = decoded['error'] ?? 'Unknown error';
+        throw Exception('Transfer ditolak: $error');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Koneksi ke server gagal: $e');
+    }
+  }
+
   /// Memproses pembayaran untuk transaksi yang sudah ada.
   ///
   /// Endpoint: POST /api/transactions/:id/pay
@@ -68,8 +105,9 @@ class PaymentService {
   Future<TransactionModel> processPayment({
     required String transactionId,
   }) async {
+    final encodedId = Uri.encodeComponent(transactionId);
     final url =
-        Uri.parse('${_config.baseUrl}/api/transactions/$transactionId/pay');
+        Uri.parse('${_config.baseUrl}/api/transactions/$encodedId/pay');
 
     try {
       final response = await http.post(url, headers: _headers);
@@ -94,8 +132,9 @@ class PaymentService {
   Future<TransactionModel> checkStatus({
     required String transactionId,
   }) async {
+    final encodedId = Uri.encodeComponent(transactionId);
     final url = Uri.parse(
-        '${_config.baseUrl}/api/transactions/$transactionId/status');
+        '${_config.baseUrl}/api/transactions/$encodedId/status');
 
     try {
       final response = await http.get(url, headers: _headers);
@@ -106,6 +145,29 @@ class PaymentService {
       } else {
         final error = decoded['error'] ?? 'Unknown error';
         throw Exception('Gagal mengecek status: $error');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Koneksi ke server gagal: $e');
+    }
+  }
+
+  /// Mengambil riwayat transaksi.
+  ///
+  /// Endpoint: GET /api/transactions
+  Future<List<TransactionModel>> fetchTransactionHistory() async {
+    final url = Uri.parse('${_config.baseUrl}/api/transactions');
+
+    try {
+      final response = await http.get(url, headers: _headers);
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = decoded['data'] ?? [];
+        return data.map((json) => TransactionModel.fromJson(json)).toList();
+      } else {
+        final error = decoded['error'] ?? 'Unknown error';
+        throw Exception('Gagal mengambil riwayat: $error');
       }
     } catch (e) {
       if (e is Exception) rethrow;

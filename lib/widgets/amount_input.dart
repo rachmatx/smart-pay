@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../config/app_theme.dart';
+
 /// Input untuk nominal uang dengan format Rupiah.
 ///
 /// Menampilkan prefix "Rp" dan memformat angka secara otomatis
@@ -9,7 +11,7 @@ class AmountInput extends StatelessWidget {
   const AmountInput({
     super.key,
     required this.controller,
-    this.hintText = 'Masukkan nominal',
+    this.hintText = '0',
   });
 
   final TextEditingController controller;
@@ -17,12 +19,15 @@ class AmountInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return TextField(
       controller: controller,
       keyboardType: TextInputType.number,
-      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+      style: const TextStyle(
+        fontSize: 36, 
+        fontWeight: FontWeight.bold,
+        color: AppTheme.textPrimary,
+      ),
+      textAlign: TextAlign.center,
       inputFormatters: [
         // Hanya izinkan angka
         FilteringTextInputFormatter.digitsOnly,
@@ -31,22 +36,23 @@ class AmountInput extends StatelessWidget {
       ],
       decoration: InputDecoration(
         prefixText: 'Rp ',
-        prefixStyle: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: theme.colorScheme.onSurface,
+        prefixStyle: const TextStyle(
+          fontSize: 36,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.textPrimary,
         ),
         hintText: hintText,
-        hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-        filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+        hintStyle: TextStyle(
+          color: AppTheme.textSecondary.withValues(alpha: 0.5),
         ),
+        filled: true,
+        fillColor: Colors.transparent, // Transparent because we wrap it in a card
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
-          vertical: 18,
+          vertical: 24,
         ),
       ),
     );

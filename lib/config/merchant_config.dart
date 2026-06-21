@@ -11,7 +11,7 @@ class MerchantConfig {
   /// Singleton instance
   static MerchantConfig get instance => _instance;
 
-  /// Base URL backend (gunakan IP jaringan lokal, bukan localhost)
+  /// Base URL backend (Gunakan IP komputer agar HP bisa mengaksesnya via WiFi)
   String baseUrl = 'http://192.168.100.10:3000';
 
   /// API Key untuk otentikasi ke backend

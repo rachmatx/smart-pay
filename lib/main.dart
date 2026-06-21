@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'screens/home_screen.dart';
+import 'config/app_theme.dart';
+import 'screens/main_screen.dart';
 
 /// Titik masuk utama aplikasi SmartPay.
-///
-/// Mengatur tema dan route awal ke HomeScreen.
 void main() {
   runApp(const SmartPayApp());
 }
@@ -17,24 +16,9 @@ class SmartPayApp extends StatelessWidget {
     return MaterialApp(
       title: 'SmartPay',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1A73E8), // Biru sebagai warna utama
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-        ),
-        cardTheme: CardThemeData(
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-      ),
-      home: const HomeScreen(),
+      theme: AppTheme.lightTheme,
+      home: const MainScreen(),
     );
   }
 }
+

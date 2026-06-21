@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_theme.dart';
 import '../models/transaction.dart';
 import '../services/payment_service.dart';
 import '../widgets/primary_button.dart';
-import '../widgets/status_badge.dart';
-import 'home_screen.dart';
+import 'main_screen.dart';
 
-/// Layar untuk menampilkan status transaksi.
-///
-/// Memanggil API check status saat pertama kali dimuat.
-/// Tombol "Refresh" untuk mengecek ulang, dan "Kembali ke Beranda"
-/// untuk memulai transaksi baru.
 class StatusScreen extends StatefulWidget {
   const StatusScreen({
     super.key,
@@ -23,19 +18,35 @@ class StatusScreen extends StatefulWidget {
   State<StatusScreen> createState() => _StatusScreenState();
 }
 
-class _StatusScreenState extends State<StatusScreen> {
+class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderStateMixin {
   final _paymentService = PaymentService();
   TransactionModel? _transaction;
   bool _isLoading = true;
   String? _error;
 
+  late AnimationController _animController;
+  late Animation<double> _scaleAnimation;
+
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _scaleAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.elasticOut,
+    );
     _fetchStatus();
   }
 
-  /// Mengambil status transaksi dari backend
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchStatus() async {
     setState(() {
       _isLoading = true;
@@ -50,6 +61,7 @@ class _StatusScreenState extends State<StatusScreen> {
         _transaction = result;
         _isLoading = false;
       });
+      _animController.forward(from: 0);
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -58,7 +70,6 @@ class _StatusScreenState extends State<StatusScreen> {
     }
   }
 
-  /// Format nominal ke format Rupiah
   String _formatRupiah(double value) {
     final formatted = value.toStringAsFixed(0);
     final buffer = StringBuffer();
@@ -71,213 +82,309 @@ class _StatusScreenState extends State<StatusScreen> {
     return 'Rp $buffer';
   }
 
-  /// Ikon berdasarkan status transaksi
-  IconData _statusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'paid':
-      case 'success':
-        return Icons.check_circle;
-      case 'failed':
-      case 'error':
-        return Icons.error;
-      default:
-        return Icons.hourglass_empty;
-    }
+  bool get _isSuccess {
+    final status = _transaction?.status.toLowerCase() ?? '';
+    return status == 'paid' || status == 'success';
+  }
+
+  bool get _isFailed {
+    final status = _transaction?.status.toLowerCase() ?? '';
+    return status == 'failed' || status == 'error';
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Status Transaksi'),
-        // Sembunyikan tombol back agar pengguna tidak kembali
-        // ke layar konfirmasi yang sudah diproses
-        automaticallyImplyLeading: false,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: _buildContent(theme),
-      ),
+      backgroundColor: AppTheme.primaryColor, // DANA blue background for success
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          : _error != null
+              ? _buildErrorState()
+              : _buildSuccessState(),
     );
   }
 
-  Widget _buildContent(ThemeData theme) {
-    // State loading
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    // State error
-    if (_error != null) {
-      return Column(
+  Widget _buildErrorState() {
+    return Container(
+      color: AppTheme.background,
+      padding: const EdgeInsets.all(24),
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.cloud_off,
-            size: 64,
-            color: theme.colorScheme.error,
+            Icons.cloud_off_rounded,
+            size: 80,
+            color: AppTheme.error,
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Gagal memuat status',
-            style: theme.textTheme.titleLarge?.copyWith(
+          const SizedBox(height: 24),
+          const Text(
+            'Koneksi Gagal',
+            style: TextStyle(
+              fontSize: 24,
               fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             _error!,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+            style: const TextStyle(
+              fontSize: 16,
+              color: AppTheme.textSecondary,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 48),
           PrimaryButton(
             label: 'Coba Lagi',
             onPressed: _fetchStatus,
           ),
-          const SizedBox(height: 12),
-          PrimaryButton(
-            label: 'Kembali ke Beranda',
-            onPressed: () => _goHome(),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: _goHome,
+            child: const Text('Kembali ke Beranda'),
           ),
         ],
-      );
-    }
+      ),
+    );
+  }
 
-    // State sukses
+  Widget _buildSuccessState() {
     final transaction = _transaction!;
+    final color = _isSuccess ? AppTheme.success : (_isFailed ? AppTheme.error : Colors.amber);
+    final icon = _isSuccess ? Icons.check_circle_rounded : (_isFailed ? Icons.cancel_rounded : Icons.hourglass_empty_rounded);
+    final title = _isSuccess ? 'Pembayaran Berhasil!' : (_isFailed ? 'Pembayaran Gagal' : 'Menunggu Pembayaran');
 
-    return Column(
+    return Stack(
       children: [
-        const Spacer(),
-
-        // Ikon status
-        Icon(
-          _statusIcon(transaction.status),
-          size: 80,
-          color: _statusColor(transaction.status),
-        ),
-        const SizedBox(height: 24),
-
-        // Badge status
-        StatusBadge(status: transaction.status),
-        const SizedBox(height: 32),
-
-        // Detail transaksi
-        Card(
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+        // For failed or pending, override the blue background
+        if (!_isSuccess)
+          Positioned.fill(
+            child: Container(color: AppTheme.background),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                _InfoRow(label: 'ID Transaksi', value: transaction.transactionId),
-                const Divider(height: 20),
-                _InfoRow(
-                  label: 'Nominal',
-                  value: _formatRupiah(transaction.amount),
+        
+        SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 40),
+                      ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              )
+                            ]
+                          ),
+                          child: Icon(
+                            icon,
+                            size: 64,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: _isSuccess ? Colors.white : AppTheme.textPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _formatRupiah(transaction.amount),
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: _isSuccess ? Colors.white : AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+
+                      // Receipt Card (DANA style)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          children: [
+                            _InfoRow(label: 'Penyedia', value: 'SmartPay System'),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(color: Color(0xFFF1F5F9)),
+                            ),
+                            _InfoRow(label: 'ID Transaksi', value: transaction.transactionId),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(color: Color(0xFFF1F5F9)),
+                            ),
+                            _InfoRow(
+                              label: 'Status',
+                              value: transaction.status,
+                              valueColor: color,
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(color: Color(0xFFF1F5F9)),
+                            ),
+                            _InfoRow(
+                              label: 'Metode',
+                              value: transaction.method == 'QRIS' ? 'QRIS' : 'Transfer Bank',
+                            ),
+                            if (transaction.customerRef != null) ...[
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Divider(color: Color(0xFFF1F5F9)),
+                              ),
+                              _InfoRow(
+                                label: 'Catatan',
+                                value: transaction.customerRef!,
+                              ),
+                            ],
+                            if (transaction.paidAt != null) ...[
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Divider(color: Color(0xFFF1F5F9)),
+                              ),
+                              _InfoRow(
+                                label: 'Waktu',
+                                value: _formatTime(transaction.paidAt!),
+                              ),
+                            ]
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 100),
+                    ],
+                  ),
                 ),
-                const Divider(height: 20),
-                _InfoRow(
-                  label: 'Metode',
-                  value: transaction.method == 'QRIS'
-                      ? 'QRIS'
-                      : 'Transfer Bank',
+              ),
+            ],
+          ),
+        ),
+
+        // Bottom CTA
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppTheme.background,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!_isSuccess && !_isFailed) ...[
+                  PrimaryButton(
+                    label: 'Refresh Status',
+                    onPressed: _fetchStatus,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: OutlinedButton(
+                    onPressed: _goHome,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primaryColor,
+                      side: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Kembali ke Beranda',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
         ),
-
-        const Spacer(),
-
-        // Tombol refresh
-        PrimaryButton(
-          label: 'Refresh Status',
-          onPressed: _fetchStatus,
-        ),
-        const SizedBox(height: 12),
-
-        // Tombol kembali ke beranda
-        OutlinedButton(
-          onPressed: _goHome,
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 52),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: const Text(
-            'Buat Transaksi Baru',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-        ),
-        const SizedBox(height: 16),
       ],
     );
   }
 
-  Color _statusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'paid':
-      case 'success':
-        return Colors.green;
-      case 'failed':
-      case 'error':
-        return Colors.red;
-      default:
-        return Colors.amber;
-    }
+  String _formatTime(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   void _goHome() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const MainScreen()),
       (route) => false,
     );
   }
 }
 
-/// Baris informasi untuk menampilkan label dan nilai
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({
+    required this.label, 
+    required this.value,
+    this.valueColor,
+  });
 
   final String label;
   final String value;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
+          flex: 2,
           child: Text(
             label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppTheme.textSecondary,
             ),
           ),
         ),
-        Flexible(
+        Expanded(
+          flex: 3,
           child: Text(
             value,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w500,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: valueColor ?? AppTheme.textPrimary,
             ),
             textAlign: TextAlign.end,
-            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
     );
   }
 }
+

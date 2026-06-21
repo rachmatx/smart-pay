@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_theme.dart';
 import '../models/transaction.dart';
-import '../services/payment_service.dart';
 import '../widgets/primary_button.dart';
-import 'status_screen.dart';
+import 'pin_screen.dart';
 
-/// Layar konfirmasi pembayaran sebelum diproses.
-///
-/// Menampilkan ringkasan transaksi (nominal, metode, detail pembayaran).
-/// Tombol "Konfirmasi Pembayaran" akan memanggil API untuk memproses
-/// pembayaran, lalu navigasi ke layar status.
-class PaymentConfirmationScreen extends StatefulWidget {
+class PaymentConfirmationScreen extends StatelessWidget {
   const PaymentConfirmationScreen({
     super.key,
     required this.transaction,
@@ -18,17 +13,6 @@ class PaymentConfirmationScreen extends StatefulWidget {
 
   final TransactionModel transaction;
 
-  @override
-  State<PaymentConfirmationScreen> createState() =>
-      _PaymentConfirmationScreenState();
-}
-
-class _PaymentConfirmationScreenState
-    extends State<PaymentConfirmationScreen> {
-  final _paymentService = PaymentService();
-  bool _isLoading = false;
-
-  /// Format nominal ke format Rupiah
   String _formatRupiah(double value) {
     final formatted = value.toStringAsFixed(0);
     final buffer = StringBuffer();
@@ -41,194 +25,201 @@ class _PaymentConfirmationScreenState
     return 'Rp $buffer';
   }
 
-  /// Label metode pembayaran yang ramah pengguna
-  String get _paymentMethodLabel {
-    switch (widget.transaction.method) {
-      case 'QRIS':
-        return 'QRIS';
-      case 'BANK_TRANSFER':
-        return 'Transfer Bank';
-      default:
-        return widget.transaction.method;
-    }
-  }
-
-  /// Ikon metode pembayaran
-  IconData get _paymentMethodIcon {
-    switch (widget.transaction.method) {
-      case 'QRIS':
-        return Icons.qr_code_2;
-      case 'BANK_TRANSFER':
-        return Icons.account_balance;
-      default:
-        return Icons.payment;
-    }
-  }
-
-  /// Proses pembayaran dan navigasi ke layar status
-  Future<void> _processPayment() async {
-    setState(() => _isLoading = true);
-
-    try {
-      await _paymentService.processPayment(
-        transactionId: widget.transaction.transactionId,
-      );
-
-      if (!mounted) return;
-
-      // Navigasi ke layar status, hapus semua layar sebelumnya
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => StatusScreen(
-            transactionId: widget.transaction.transactionId,
-          ),
-        ),
-        (route) => false,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final trx = widget.transaction;
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Konfirmasi Pembayaran')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const Spacer(),
-
-            // Ikon metode pembayaran
-            Icon(
-              _paymentMethodIcon,
-              size: 64,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(height: 24),
-
-            // Judul
-            Text(
-              'Konfirmasi Pembayaran',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-
-            // Detail transaksi dalam kartu
-            Card(
-              elevation: 1,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    _DetailRow(label: 'ID Transaksi', value: trx.transactionId),
-                    const Divider(height: 24),
-                    _DetailRow(
-                      label: 'Metode',
-                      value: _paymentMethodLabel,
-                    ),
-                    const Divider(height: 24),
-                    _DetailRow(
-                      label: 'Total',
-                      value: _formatRupiah(trx.amount),
-                      isBold: true,
-                    ),
-                    if (trx.expiredAt != null) ...[
-                      const Divider(height: 24),
-                      _DetailRow(
-                        label: 'Berlaku hingga',
-                        value: _formatTime(trx.expiredAt!),
-                      ),
-                    ],
-                    // Tampilkan detail pembayaran dari backend
-                    if (trx.paymentDetail != null) ...[
-                      const Divider(height: 24),
-                      ...trx.paymentDetail!.entries.map(
-                        (e) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: _DetailRow(
-                            label: e.key.replaceAll('_', ' '),
-                            value: e.value.toString(),
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: const Text('Konfirmasi Pembayaran'),
+        backgroundColor: Colors.transparent,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryLight,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            transaction.method == 'QRIS'
+                                ? Icons.qr_code_2_rounded
+                                : Icons.account_balance_rounded,
+                            size: 48,
+                            color: AppTheme.primaryColor,
                           ),
                         ),
-                      ),
-                    ],
-                  ],
-                ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Total Pembayaran',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _formatRupiah(transaction.amount),
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  const Text(
+                    'Detail Transaksi',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Builder(
+                          builder: (context) {
+                            String penyedia = 'SmartPay System';
+                            if (transaction.paymentDetail != null) {
+                              if (transaction.method == 'QRIS') {
+                                penyedia = transaction.paymentDetail!['merchant_name'] ?? 'SmartPay System';
+                              } else {
+                                final bank = transaction.paymentDetail!['bank_name'] ?? '';
+                                final name = transaction.paymentDetail!['merchant_name'] ?? transaction.paymentDetail!['account_holder'] ?? 'SmartPay System';
+                                penyedia = bank.isNotEmpty ? '$name ($bank)' : name;
+                              }
+                            }
+                            return _DetailRow(
+                              label: 'Penyedia',
+                              value: penyedia,
+                            );
+                          }
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Divider(color: Color(0xFFF1F5F9)),
+                        ),
+                        _DetailRow(
+                          label: 'ID Transaksi',
+                          value: transaction.transactionId,
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Divider(color: Color(0xFFF1F5F9)),
+                        ),
+                        _DetailRow(
+                          label: 'Metode',
+                          value: transaction.method == 'QRIS' ? 'QRIS' : 'Transfer Bank',
+                        ),
+                        if (transaction.customerRef != null) ...[
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Divider(color: Color(0xFFF1F5F9)),
+                          ),
+                          _DetailRow(
+                            label: 'Catatan',
+                            value: transaction.customerRef!,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
+          ),
 
-            const Spacer(),
-
-            // Tombol konfirmasi
-            PrimaryButton(
-              label: 'Konfirmasi Pembayaran',
-              isLoading: _isLoading,
-              onPressed: _processPayment,
+          // Bottom Action
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  offset: const Offset(0, -4),
+                  blurRadius: 16,
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-          ],
-        ),
+            child: PrimaryButton(
+              label: 'Bayar Sekarang',
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PinScreen(transaction: transaction),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
-
-  String _formatTime(DateTime dt) {
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
 }
 
-/// Baris detail untuk menampilkan label dan nilai
 class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
   const _DetailRow({
     required this.label,
     required this.value,
-    this.isBold = false,
   });
-
-  final String label;
-  final String value;
-  final bool isBold;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
+          flex: 2,
           child: Text(
             label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 14,
             ),
           ),
         ),
-        Flexible(
+        Expanded(
+          flex: 3,
           child: Text(
             value,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+              fontSize: 14,
             ),
             textAlign: TextAlign.end,
-            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
