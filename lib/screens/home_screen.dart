@@ -432,8 +432,8 @@ class _HomeScreenState extends State<HomeScreen> {
               final title = tx.method == 'QRIS' ? 'Pembayaran QRIS' : 'Transfer Bank';
               
               // format date
-              final d = tx.createdAt?.toLocal();
-              final dateStr = d != null ? '${d.day}/${d.month}/${d.year} ${d.hour}:${d.minute.toString().padLeft(2, '0')}' : 'Waktu tidak diketahui';
+              final d = tx.createdAt?.toUtc().add(const Duration(hours: 7));
+              final dateStr = d != null ? '${d.day}/${d.month}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')} WIB' : 'Waktu tidak diketahui';
               
               return Column(
                 children: [

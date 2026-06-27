@@ -54,8 +54,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   String _formatIndonesianDate(DateTime d) {
     const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    final timeZone = d.timeZoneName; // Akan mendeteksi WIB/WITA/WIT jika HP disetting ke regional Indonesia
-    return '${d.day} ${months[d.month - 1]} ${d.year} • ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')} $timeZone';
+    return '${d.day} ${months[d.month - 1]} ${d.year} • ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')} WIB';
   }
 
   @override
@@ -90,7 +89,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       final icon = tx.method == 'QRIS' ? Icons.qr_code : Icons.account_balance;
                       final title = tx.method == 'QRIS' ? 'Pembayaran QRIS' : 'Transfer Bank';
                       
-                      final d = tx.createdAt?.toLocal();
+                      final d = tx.createdAt?.toUtc().add(const Duration(hours: 7));
                       final dateStr = d != null 
                           ? _formatIndonesianDate(d)
                           : 'Waktu tidak diketahui';

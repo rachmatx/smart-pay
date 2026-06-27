@@ -46,6 +46,15 @@ class TransactionModel {
 
   /// Buat TransactionModel dari JSON response backend.
   /// Mendukung field `transaction_id` (create/pay) maupun `id` (status).
+  static DateTime? _parseDbDate(dynamic dateVal) {
+    if (dateVal == null) return null;
+    String s = dateVal.toString();
+    if (!s.endsWith('Z') && !s.contains('+')) {
+      s = s.replaceAll(' ', 'T') + 'Z';
+    }
+    return DateTime.tryParse(s);
+  }
+
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     Map<String, dynamic>? parsedPaymentDetail;
     if (json['payment_detail'] is Map) {
@@ -63,15 +72,9 @@ class TransactionModel {
       status: json['status']?.toString() ?? 'PENDING',
       paymentDetail: parsedPaymentDetail,
       customerRef: json['customer_ref']?.toString(),
-      expiredAt: json['expired_at'] != null
-          ? DateTime.tryParse(json['expired_at'].toString())
-          : null,
-      paidAt: json['paid_at'] != null
-          ? DateTime.tryParse(json['paid_at'].toString())
-          : null,
-      createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'].toString())
-          : null,
+      expiredAt: _parseDbDate(json['expired_at']),
+      paidAt: _parseDbDate(json['paid_at']),
+      createdAt: _parseDbDate(json['created_at']),
     );
   }
 
