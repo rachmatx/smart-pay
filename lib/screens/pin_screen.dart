@@ -8,10 +8,7 @@ import '../services/payment_service.dart';
 import 'status_screen.dart';
 
 class PinScreen extends StatefulWidget {
-  const PinScreen({
-    super.key,
-    required this.transaction,
-  });
+  const PinScreen({super.key, required this.transaction});
 
   final TransactionModel transaction;
 
@@ -19,7 +16,8 @@ class PinScreen extends StatefulWidget {
   State<PinScreen> createState() => _PinScreenState();
 }
 
-class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMixin {
+class _PinScreenState extends State<PinScreen>
+    with SingleTickerProviderStateMixin {
   String _pin = '';
   final int _pinLength = 6;
   bool _isLoading = false;
@@ -29,6 +27,8 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
   late Animation<double> _shakeAnimation;
 
   final LocalAuthentication auth = LocalAuthentication();
+  final _paymentService = PaymentService();
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -37,17 +37,18 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _shakeAnimation = Tween<double>(begin: 0, end: 24).animate(
-      CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
-    )..addStatusListener((status) {
-        if (status == AnimationStatus.completed) {
-          _shakeController.reset();
-          setState(() {
-            _pin = '';
-            _isError = false;
-          });
-        }
-      });
+    _shakeAnimation =
+        Tween<double>(begin: 0, end: 24).animate(
+          CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
+        )..addStatusListener((status) {
+          if (status == AnimationStatus.completed) {
+            _shakeController.reset();
+            setState(() {
+              _pin = '';
+              _isError = false;
+            });
+          }
+        });
 
     // Check biometric after small delay
     Future.delayed(const Duration(milliseconds: 500), _checkBiometric);
@@ -60,9 +61,11 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
   }
 
   Future<void> _checkBiometric() async {
+    if (!mounted || _submitting) return;
     try {
       final canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
-      final canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
+      final canAuthenticate =
+          canAuthenticateWithBiometrics || await auth.isDeviceSupported();
 
       if (canAuthenticate) {
         final authenticated = await auth.authenticate(
@@ -74,13 +77,16 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
         );
 
         if (authenticated) {
+          if (!mounted) return;
           _processPayment();
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Fitur biometrik tidak tersedia (Anda sedang menjalankan versi Web/Chrome). Silakan gunakan PIN.'),
+              content: Text(
+                'Fitur biometrik tidak tersedia (Anda sedang menjalankan versi Web/Chrome). Silakan gunakan PIN.',
+              ),
               backgroundColor: AppTheme.error,
             ),
           );
@@ -90,7 +96,9 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Sistem gagal memuat biometrik: ${e.message ?? 'Tidak didukung'}.'),
+            content: Text(
+              'Sistem gagal memuat biometrik: ${e.message ?? 'Tidak didukung'}.',
+            ),
             backgroundColor: AppTheme.error,
           ),
         );
@@ -123,6 +131,7 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
 
     // Simulate network delay for verification
     await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted || _submitting) return;
 
     // Hardcode PIN for prototype purpose (123456 is correct)
     if (_pin == '123456') {
@@ -138,11 +147,12 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
   }
 
   Future<void> _processPayment() async {
+    if (!mounted || _submitting) return;
+    _submitting = true;
     setState(() => _isLoading = true);
-    final paymentService = PaymentService();
 
     try {
-      await paymentService.processPayment(
+      await _paymentService.processPayment(
         transactionId: widget.transaction.transactionId,
       );
 
@@ -151,13 +161,13 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => StatusScreen(
-            transactionId: widget.transaction.transactionId,
-          ),
+          builder: (_) =>
+              StatusScreen(transactionId: widget.transaction.transactionId),
         ),
         (route) => false,
       );
     } catch (e) {
+      _submitting = false;
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -165,10 +175,7 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
       });
       _shakeController.forward();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: AppTheme.error,
-        ),
+        SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
       );
     }
   }
@@ -211,7 +218,8 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
               builder: (context, child) {
                 return Transform.translate(
                   offset: Offset(
-                    _shakeAnimation.value * (_shakeController.value > 0.5 ? -1 : 1),
+                    _shakeAnimation.value *
+                        (_shakeController.value > 0.5 ? -1 : 1),
                     0,
                   ),
                   child: child,
@@ -235,7 +243,7 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
                 }),
               ),
             ),
-            
+
             if (_isLoading) ...[
               const SizedBox(height: 48),
               const CircularProgressIndicator(color: Colors.white),
@@ -300,11 +308,7 @@ class _KeypadButton extends StatelessWidget {
   final IconData? icon;
   final VoidCallback onTap;
 
-  const _KeypadButton({
-    this.text,
-    this.icon,
-    required this.onTap,
-  });
+  const _KeypadButton({this.text, this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -326,11 +330,7 @@ class _KeypadButton extends StatelessWidget {
                     color: AppTheme.textPrimary,
                   ),
                 )
-              : Icon(
-                  icon,
-                  size: 32,
-                  color: AppTheme.textSecondary,
-                ),
+              : Icon(icon, size: 32, color: AppTheme.textSecondary),
         ),
       ),
     );

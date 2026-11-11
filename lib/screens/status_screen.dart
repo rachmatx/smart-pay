@@ -7,10 +7,7 @@ import '../widgets/primary_button.dart';
 import 'main_screen.dart';
 
 class StatusScreen extends StatefulWidget {
-  const StatusScreen({
-    super.key,
-    required this.transactionId,
-  });
+  const StatusScreen({super.key, required this.transactionId});
 
   final String transactionId;
 
@@ -18,7 +15,8 @@ class StatusScreen extends StatefulWidget {
   State<StatusScreen> createState() => _StatusScreenState();
 }
 
-class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderStateMixin {
+class _StatusScreenState extends State<StatusScreen>
+    with SingleTickerProviderStateMixin {
   final _paymentService = PaymentService();
   TransactionModel? _transaction;
   bool _isLoading = true;
@@ -57,12 +55,14 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
       final result = await _paymentService.checkStatus(
         transactionId: widget.transactionId,
       );
+      if (!mounted) return;
       setState(() {
         _transaction = result;
         _isLoading = false;
       });
       _animController.forward(from: 0);
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -95,12 +95,13 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primaryColor, // DANA blue background for success
+      backgroundColor:
+          AppTheme.primaryColor, // DANA blue background for success
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : _error != null
-              ? _buildErrorState()
-              : _buildSuccessState(),
+          ? _buildErrorState()
+          : _buildSuccessState(),
     );
   }
 
@@ -111,11 +112,7 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.cloud_off_rounded,
-            size: 80,
-            color: AppTheme.error,
-          ),
+          Icon(Icons.cloud_off_rounded, size: 80, color: AppTheme.error),
           const SizedBox(height: 24),
           const Text(
             'Koneksi Gagal',
@@ -128,17 +125,11 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
           const SizedBox(height: 8),
           Text(
             _error!,
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppTheme.textSecondary,
-            ),
+            style: const TextStyle(fontSize: 16, color: AppTheme.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 48),
-          PrimaryButton(
-            label: 'Coba Lagi',
-            onPressed: _fetchStatus,
-          ),
+          PrimaryButton(label: 'Coba Lagi', onPressed: _fetchStatus),
           const SizedBox(height: 16),
           TextButton(
             onPressed: _goHome,
@@ -151,18 +142,22 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
 
   Widget _buildSuccessState() {
     final transaction = _transaction!;
-    final color = _isSuccess ? AppTheme.success : (_isFailed ? AppTheme.error : Colors.amber);
-    final icon = _isSuccess ? Icons.check_circle_rounded : (_isFailed ? Icons.cancel_rounded : Icons.hourglass_empty_rounded);
-    final title = _isSuccess ? 'Pembayaran Berhasil!' : (_isFailed ? 'Pembayaran Gagal' : 'Menunggu Pembayaran');
+    final color = _isSuccess
+        ? AppTheme.success
+        : (_isFailed ? AppTheme.error : Colors.amber);
+    final icon = _isSuccess
+        ? Icons.check_circle_rounded
+        : (_isFailed ? Icons.cancel_rounded : Icons.hourglass_empty_rounded);
+    final title = _isSuccess
+        ? 'Pembayaran Berhasil!'
+        : (_isFailed ? 'Pembayaran Gagal' : 'Menunggu Pembayaran');
 
     return Stack(
       children: [
         // For failed or pending, override the blue background
         if (!_isSuccess)
-          Positioned.fill(
-            child: Container(color: AppTheme.background),
-          ),
-        
+          Positioned.fill(child: Container(color: AppTheme.background)),
+
         SafeArea(
           child: Column(
             children: [
@@ -184,14 +179,10 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
                                 color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
-                              )
-                            ]
+                              ),
+                            ],
                           ),
-                          child: Icon(
-                            icon,
-                            size: 64,
-                            color: color,
-                          ),
+                          child: Icon(icon, size: 64, color: color),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -200,7 +191,9 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: _isSuccess ? Colors.white : AppTheme.textPrimary,
+                          color: _isSuccess
+                              ? Colors.white
+                              : AppTheme.textPrimary,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -210,7 +203,9 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
                         style: TextStyle(
                           fontSize: 36,
                           fontWeight: FontWeight.bold,
-                          color: _isSuccess ? Colors.white : AppTheme.textPrimary,
+                          color: _isSuccess
+                              ? Colors.white
+                              : AppTheme.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 40),
@@ -224,12 +219,18 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
                         padding: const EdgeInsets.all(24),
                         child: Column(
                           children: [
-                            _InfoRow(label: 'Penyedia', value: 'SmartPay System'),
+                            _InfoRow(
+                              label: 'Penyedia',
+                              value: 'SmartPay System',
+                            ),
                             const Padding(
                               padding: EdgeInsets.symmetric(vertical: 12),
                               child: Divider(color: Color(0xFFF1F5F9)),
                             ),
-                            _InfoRow(label: 'ID Transaksi', value: transaction.transactionId),
+                            _InfoRow(
+                              label: 'ID Transaksi',
+                              value: transaction.transactionId,
+                            ),
                             const Padding(
                               padding: EdgeInsets.symmetric(vertical: 12),
                               child: Divider(color: Color(0xFFF1F5F9)),
@@ -245,7 +246,9 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
                             ),
                             _InfoRow(
                               label: 'Metode',
-                              value: transaction.method == 'QRIS' ? 'QRIS' : 'Transfer Bank',
+                              value: transaction.method == 'QRIS'
+                                  ? 'QRIS'
+                                  : 'Transfer Bank',
                             ),
                             if (transaction.customerRef != null) ...[
                               const Padding(
@@ -266,7 +269,7 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
                                 label: 'Waktu',
                                 value: _formatTime(transaction.paidAt!),
                               ),
-                            ]
+                            ],
                           ],
                         ),
                       ),
@@ -310,7 +313,10 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
                     onPressed: _goHome,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.primaryColor,
-                      side: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                      side: const BorderSide(
+                        color: AppTheme.primaryColor,
+                        width: 2,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -334,7 +340,20 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
 
   String _formatTime(DateTime dt) {
     final d = dt.toUtc().add(const Duration(hours: 7));
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
     return '${d.day} ${months[d.month - 1]} ${d.year} • ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')} WIB';
   }
 
@@ -348,11 +367,7 @@ class _StatusScreenState extends State<StatusScreen> with SingleTickerProviderSt
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label, 
-    required this.value,
-    this.valueColor,
-  });
+  const _InfoRow({required this.label, required this.value, this.valueColor});
 
   final String label;
   final String value;
@@ -367,10 +382,7 @@ class _InfoRow extends StatelessWidget {
           flex: 2,
           child: Text(
             label,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppTheme.textSecondary,
-            ),
+            style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
           ),
         ),
         Expanded(
@@ -389,4 +401,3 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
-

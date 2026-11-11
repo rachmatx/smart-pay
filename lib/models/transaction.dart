@@ -50,7 +50,7 @@ class TransactionModel {
     if (dateVal == null) return null;
     String s = dateVal.toString();
     if (!s.endsWith('Z') && !s.contains('+')) {
-      s = s.replaceAll(' ', 'T') + 'Z';
+      s = '${s.replaceAll(' ', 'T')}Z';
     }
     return DateTime.tryParse(s);
   }
@@ -61,12 +61,15 @@ class TransactionModel {
       parsedPaymentDetail = Map<String, dynamic>.from(json['payment_detail']);
     } else if (json['payment_detail'] is String) {
       try {
-        parsedPaymentDetail = Map<String, dynamic>.from(jsonDecode(json['payment_detail']));
+        parsedPaymentDetail = Map<String, dynamic>.from(
+          jsonDecode(json['payment_detail']),
+        );
       } catch (_) {}
     }
 
     return TransactionModel(
-      transactionId: json['transaction_id']?.toString() ?? json['id']?.toString() ?? '',
+      transactionId:
+          json['transaction_id']?.toString() ?? json['id']?.toString() ?? '',
       amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
       method: json['method']?.toString() ?? '',
       status: json['status']?.toString() ?? 'PENDING',

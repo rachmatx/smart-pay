@@ -1,177 +1,197 @@
+import 'dart:async';
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
 import '../config/merchant_config.dart';
 import '../models/transaction.dart';
 
-/// Service untuk semua pemanggilan API pembayaran.
-///
-/// Semua HTTP call dikumpulkan di sini agar tidak ada logika jaringan
-/// yang masuk ke dalam screen/UI.
+class PaymentConnectionException implements Exception {
+  const PaymentConnectionException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
+Future<Map<String, dynamic>> requestPaymentJson(
+  http.Client client,
+  Uri uri, {
+  String method = 'GET',
+  String? key,
+  Object? body,
+}) async {
+  final request = http.Request(method, uri)..followRedirects = false;
+  request.headers['Accept'] = 'application/json';
+  if (key != null) request.headers['X-Api-Key'] = key;
+  if (body != null) {
+    request.headers['Content-Type'] = 'application/json';
+    request.body = jsonEncode(body);
+  }
+  try {
+    final response = await (() async {
+      final streamed = await client.send(request);
+      final bytes = <int>[];
+      await for (final chunk in streamed.stream) {
+        if (bytes.length + chunk.length > 131072) {
+          throw const PaymentConnectionException(
+            'Respons server terlalu besar. Periksa alamat Payment API.',
+          );
+        }
+        bytes.addAll(chunk);
+      }
+      return http.Response.bytes(bytes, streamed.statusCode);
+    })().timeout(const Duration(seconds: 10));
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      throw const PaymentConnectionException(
+        'API key tidak cocok dengan server ini. Periksa konfigurasi di halaman Saya.',
+      );
+    }
+    if (response.statusCode == 404) {
+      throw const PaymentConnectionException(
+        'Transaksi atau endpoint tidak ditemukan pada server ini. Periksa server dan kode transaksi.',
+      );
+    }
+    if (response.statusCode == 409) {
+      throw const PaymentConnectionException(
+        'Transaksi sudah diproses atau statusnya berubah. Periksa status sebelum mencoba lagi.',
+      );
+    }
+    if (response.statusCode == 410) {
+      throw const PaymentConnectionException(
+        'Tagihan sudah kedaluwarsa. Buat tagihan baru dari Sparkleen.',
+      );
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw const PaymentConnectionException(
+        'Server belum dapat memproses permintaan. Periksa koneksi dan status Payment API.',
+      );
+    }
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is! Map<String, dynamic>) throw const FormatException();
+    return decoded;
+  } on PaymentConnectionException {
+    rethrow;
+  } on TimeoutException {
+    throw const PaymentConnectionException(
+      'Server tidak merespons. Periksa Wi-Fi, alamat, port, dan firewall laptop.',
+    );
+  } catch (_) {
+    throw const PaymentConnectionException(
+      'Tidak dapat membaca Payment API. Periksa alamat server dan koneksi perangkat.',
+    );
+  }
+}
+
 class PaymentService {
-  final MerchantConfig _config = MerchantConfig.instance;
+  PaymentService({MerchantConfig? config, this._client})
+    : _config = config ?? MerchantConfig.instance {
+    _settings = _config.settings;
+    _revision = _config.revision;
+  }
+  final MerchantConfig _config;
+  final http.Client? _client;
+  late final ServerSettings _settings;
+  late final int _revision;
+  void _checkScope() {
+    if (_config.revision != _revision) {
+      throw const PaymentConnectionException(
+        'Server sudah berubah. Buka kembali transaksi dari server yang aktif.',
+      );
+    }
+    if (!_settings.configured) {
+      throw const PaymentConnectionException(
+        'Atur alamat server dan API key di halaman Saya terlebih dahulu.',
+      );
+    }
+  }
 
-  /// Header default untuk setiap request
-  Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'X-Api-Key': _config.apiKey,
-      };
+  Future<dynamic> _request(
+    String path, {
+    String method = 'GET',
+    Object? body,
+  }) async {
+    _checkScope();
+    final client = _client ?? http.Client();
+    try {
+      final result = await requestPaymentJson(
+        client,
+        Uri.parse('${_settings.baseUrl}/api/transactions$path'),
+        method: method,
+        key: _settings.apiKey,
+        body: body,
+      );
+      _checkScope();
+      if (result['success'] != true || result['data'] == null) {
+        throw const PaymentConnectionException(
+          'Respons Payment API belum sesuai. Periksa server yang dipilih.',
+        );
+      }
+      return result['data'];
+    } finally {
+      if (_client == null) client.close();
+    }
+  }
 
-  /// Membuat transaksi baru di backend.
-  ///
-  /// Endpoint: POST /api/transactions
-  /// Body: { amount, method, customer_ref? }
-  /// method harus 'QRIS' atau 'BANK_TRANSFER'
-  /// Response: { success, data: { transaction_id, amount, method, payment_detail, expired_at, status } }
+  Future<TransactionModel> _transaction(
+    String path, {
+    String method = 'GET',
+    Object? body,
+  }) async {
+    final data = await _request(path, method: method, body: body);
+    if (data is! Map<String, dynamic>) {
+      throw const PaymentConnectionException(
+        'Detail transaksi dari server belum sesuai.',
+      );
+    }
+    return TransactionModel.fromJson(data);
+  }
+
   Future<TransactionModel> createTransaction({
     required double amount,
     required String method,
     String? customerRef,
-  }) async {
-    final url = Uri.parse('${_config.baseUrl}/api/transactions');
-
-    try {
-      final body = <String, dynamic>{
-        'amount': amount,
-        'method': method,
-      };
-      if (customerRef != null && customerRef.isNotEmpty) {
-        body['customer_ref'] = customerRef;
-      }
-
-      final response = await http.post(
-        url,
-        headers: _headers,
-        body: jsonEncode(body),
-      );
-
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        // Response dibungkus { success, data: { ... } }
-        return TransactionModel.fromJson(decoded['data']);
-      } else {
-        final error = decoded['error'] ?? 'Unknown error';
-        throw Exception('Gagal membuat transaksi: $error');
-      }
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Koneksi ke server gagal: $e');
-    }
-  }
-
-  /// Mencari target transfer bank (hanya prototype).
-  ///
-  /// Endpoint: POST /api/transactions/find-transfer-target
+  }) => _transaction(
+    '',
+    method: 'POST',
+    body: {
+      'amount': amount,
+      'method': method,
+      if (customerRef != null && customerRef.isNotEmpty)
+        'customer_ref': customerRef,
+    },
+  );
   Future<TransactionModel> findTransferTarget({
     required double amount,
     required String bankName,
     required String accountNumber,
-  }) async {
-    final url = Uri.parse('${_config.baseUrl}/api/transactions/find-transfer-target');
-
-    try {
-      final body = <String, dynamic>{
-        'amount': amount,
-        'bank_name': bankName,
-        'account_number': accountNumber,
-      };
-
-      final response = await http.post(
-        url,
-        headers: _headers,
-        body: jsonEncode(body),
+  }) => _transaction(
+    '/find-transfer-target',
+    method: 'POST',
+    body: {
+      'amount': amount,
+      'bank_name': bankName,
+      'account_number': accountNumber,
+    },
+  );
+  Future<TransactionModel> processPayment({required String transactionId}) =>
+      _transaction(
+        '/${Uri.encodeComponent(transactionId)}/pay',
+        method: 'POST',
       );
-
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-
-      if (response.statusCode == 200) {
-        return TransactionModel.fromJson(decoded['data']);
-      } else {
-        final error = decoded['error'] ?? 'Unknown error';
-        throw Exception('Transfer ditolak: $error');
-      }
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Koneksi ke server gagal: $e');
-    }
-  }
-
-  /// Memproses pembayaran untuk transaksi yang sudah ada.
-  ///
-  /// Endpoint: POST /api/transactions/:id/pay
-  /// Tidak perlu body — method sudah ditentukan saat create.
-  /// Response: { success, data: { transaction_id, status, amount, method, paid_at } }
-  Future<TransactionModel> processPayment({
-    required String transactionId,
-  }) async {
-    final encodedId = Uri.encodeComponent(transactionId);
-    final url =
-        Uri.parse('${_config.baseUrl}/api/transactions/$encodedId/pay');
-
-    try {
-      final response = await http.post(url, headers: _headers);
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-
-      if (response.statusCode == 200) {
-        return TransactionModel.fromJson(decoded['data']);
-      } else {
-        final error = decoded['error'] ?? 'Unknown error';
-        throw Exception('Gagal memproses pembayaran: $error');
-      }
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Koneksi ke server gagal: $e');
-    }
-  }
-
-  /// Mengecek status transaksi terkini.
-  ///
-  /// Endpoint: GET /api/transactions/:id/status
-  /// Response: { success, data: { id, amount, method, status, paid_at, expired_at } }
-  Future<TransactionModel> checkStatus({
-    required String transactionId,
-  }) async {
-    final encodedId = Uri.encodeComponent(transactionId);
-    final url = Uri.parse(
-        '${_config.baseUrl}/api/transactions/$encodedId/status');
-
-    try {
-      final response = await http.get(url, headers: _headers);
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-
-      if (response.statusCode == 200) {
-        return TransactionModel.fromJson(decoded['data']);
-      } else {
-        final error = decoded['error'] ?? 'Unknown error';
-        throw Exception('Gagal mengecek status: $error');
-      }
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Koneksi ke server gagal: $e');
-    }
-  }
-
-  /// Mengambil riwayat transaksi.
-  ///
-  /// Endpoint: GET /api/transactions
+  Future<TransactionModel> checkStatus({required String transactionId}) =>
+      _transaction('/${Uri.encodeComponent(transactionId)}/status');
   Future<List<TransactionModel>> fetchTransactionHistory() async {
-    final url = Uri.parse('${_config.baseUrl}/api/transactions');
-
-    try {
-      final response = await http.get(url, headers: _headers);
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = decoded['data'] ?? [];
-        return data.map((json) => TransactionModel.fromJson(json)).toList();
-      } else {
-        final error = decoded['error'] ?? 'Unknown error';
-        throw Exception('Gagal mengambil riwayat: $error');
-      }
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Koneksi ke server gagal: $e');
+    final data = await _request('');
+    if (data is! List) {
+      throw const PaymentConnectionException(
+        'Riwayat dari server belum sesuai.',
+      );
     }
+    return data
+        .map(
+          (row) =>
+              TransactionModel.fromJson(Map<String, dynamic>.from(row as Map)),
+        )
+        .toList();
   }
 }

@@ -5,7 +5,6 @@ import '../services/payment_service.dart';
 import '../widgets/amount_input.dart';
 import '../widgets/primary_button.dart';
 import 'payment_confirmation_screen.dart';
-import 'status_screen.dart';
 
 class SendMoneyScreen extends StatefulWidget {
   const SendMoneyScreen({super.key});
@@ -19,11 +18,17 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
   final _customerRefController = TextEditingController();
   final _accountNumberController = TextEditingController(); // NEW
   final _paymentService = PaymentService();
-  String _selectedMethod = 'BANK_TRANSFER'; // Default to bank for realism
   String? _selectedBank; // NEW
   bool _isLoading = false;
 
-  final List<String> _banks = ['BCA', 'Mandiri', 'BNI', 'BRI', 'CIMB Niaga', 'Permata'];
+  final List<String> _banks = [
+    'BCA',
+    'Mandiri',
+    'BNI',
+    'BRI',
+    'CIMB Niaga',
+    'Permata',
+  ];
 
   @override
   void dispose() {
@@ -113,77 +118,88 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
                 children: [
                   // Bank Transfer Details
                   Container(
-                      decoration: BoxDecoration(
-                        color: AppTheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Informasi Bank Tujuan',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          DropdownButtonFormField<String>(
-                            value: _selectedBank,
-                            hint: const Text('Pilih Bank Tujuan'),
-                            decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
-                              ),
-                            ),
-                            items: _banks.map((bank) {
-                              return DropdownMenuItem(
-                                value: bank,
-                                child: Text(bank),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              setState(() {
-                                _selectedBank = val;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: _accountNumberController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'Nomor Rekening / Virtual Account',
-                              hintText: 'Contoh: 1234567890',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 24),
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Informasi Bank Tujuan',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedBank,
+                          hint: const Text('Pilih Bank Tujuan'),
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                          ),
+                          items: _banks.map((bank) {
+                            return DropdownMenuItem(
+                              value: bank,
+                              child: Text(bank),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedBank = val;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _accountNumberController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Nomor Rekening / Virtual Account',
+                            hintText: 'Contoh: 1234567890',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   // Amount Section
                   Container(
                     decoration: BoxDecoration(
@@ -217,7 +233,9 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
                           decoration: InputDecoration(
                             hintText: 'Tulis Catatan (Opsional)',
                             hintStyle: TextStyle(
-                              color: AppTheme.textSecondary.withValues(alpha: 0.5),
+                              color: AppTheme.textSecondary.withValues(
+                                alpha: 0.5,
+                              ),
                               fontSize: 14,
                             ),
                             border: InputBorder.none,
@@ -229,13 +247,13 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 100),
                 ],
               ),
             ),
           ),
-          
+
           // Bottom CTA
           Container(
             padding: const EdgeInsets.all(24),
@@ -256,87 +274,6 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MethodTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _MethodTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryLight : AppTheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryColor : Colors.transparent,
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: AppTheme.primaryColor),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: AppTheme.primaryColor)
-            else
-              const Icon(Icons.circle_outlined, color: Colors.black12),
-          ],
-        ),
       ),
     );
   }

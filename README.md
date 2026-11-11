@@ -15,7 +15,7 @@ Smart Pay is a secure, premium digital wallet application built with the Flutter
 ---
 
 ## System Requirements
-- **Flutter SDK**: Version 3.12.2 or higher.
+- **Flutter SDK**: Flutter 3.47.9 was used for verification; the bundled Dart SDK must satisfy `^3.12.2` in `pubspec.yaml`.
 - **Android Studio / Command Line Tools**: For building Android APKs.
 - **Physical Device**: A physical Android device is required to test Biometric (Fingerprint) and Camera capabilities. (Chrome/Web emulation is heavily restricted).
 
@@ -23,24 +23,15 @@ Smart Pay is a secure, premium digital wallet application built with the Flutter
 
 ## Development & Setup
 
-### 1. Configuration
-Before compiling the application, ensure it points to the correct production or local Payment API. Open the following file:
-`lib/config/merchant_config.dart`
+### 1. Server configuration from the app
+Install Smart Pay 1.0.1 or newer, then open **Saya → Konfigurasi server**.
 
-Ensure the variables are set to match your backend:
-```dart
-class MerchantConfig {
-  static final MerchantConfig _instance = MerchantConfig._internal();
-  factory MerchantConfig() => _instance;
-  MerchantConfig._internal();
+- Enter the Payment API origin, e.g. `http://192.168.1.10:3000` for a LAN test or your online HTTPS origin. Do not append `/api/transactions`.
+- Enter the merchant API key matching `API_KEY` in Payment API. Do not enter a webhook secret.
+- **Uji koneksi** checks health and merchant access without creating/paying an invoice.
+- **Simpan konfigurasi** persists the settings using secure storage and resets old-server navigation/history. Future server changes do not require another build.
 
-  /// API URL of the Node.js Payment API (e.g., Railway URL)
-  String baseUrl = 'https://payment-api-production-ba66.up.railway.app';
-
-  /// Master API Key matching the Node.js server
-  String apiKey = 'my-super-secret-key-123';
-}
-```
+Use the laptop Wi-Fi IP on a physical phone; localhost points to the phone itself. HTTP is supported for local/private addresses; internet servers use HTTPS. There is no bundled default API key. Full Indonesian instructions and isolation details: [Server settings](docs/server-settings.md).
 
 ### 2. Running in Debug Mode
 To run the app on your connected device in debug mode (allows Hot Reload but includes debugging bloat):
@@ -70,7 +61,7 @@ While Smart Pay is currently tailored for Sparkleen Laundry, its architecture is
 To adapt Smart Pay for a different project, you only need to ensure your new backend replicates the Node.js API behavior:
 1. **API Endpoints**: Your new backend must provide the exact REST API endpoints expected by the `PaymentService` (`/api/transactions/:id`, `/api/transactions/find-transfer-target`, and `/api/transactions/:id/pay`).
 2. **JSON Contract**: Your new backend must return JSON objects that map perfectly to the `TransactionModel` defined in `lib/models/transaction.dart`.
-3. **Update Config**: Modify the `baseUrl` in `merchant_config.dart` to point to your new project's API.
+3. **Update Config**: Set the new Payment API origin and merchant key through **Saya → Konfigurasi server**.
 
 No UI or core logic changes are required within the Flutter application as long as the API contract remains identical.
 
@@ -80,4 +71,4 @@ No UI or core logic changes are required within the Flutter application as long 
 
 - **Biometric Not Supported (Red Snackbar)**: Ensure you are running the app on a physical device with a registered fingerprint/face. Emulators and Web Browsers will reject biometric requests.
 - **Camera Black Screen / Null Pointer Exception**: Ensure `isMinifyEnabled` and `isShrinkResources` are set to `false` in the `android/app/build.gradle.kts` release block, or proper ProGuard rules are configured for ML Kit.
-- **Invalid API Key**: Ensure the `apiKey` string in `merchant_config.dart` perfectly matches the `API_KEY` environment variable on your Node.js server.
+- **Invalid API Key**: Open **Saya → Konfigurasi server** and ensure the saved API key matches `API_KEY` on the selected Node.js server.
